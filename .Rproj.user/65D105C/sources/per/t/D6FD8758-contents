@@ -1,0 +1,171 @@
+#******************************************************
+#       Connecting API to R Shiny APP - VIZ
+#******************************************************
+
+# Sources de donnees
+# https://data.iledefrance.fr/explore/dataset/donnees-hospitalieres-relatives-a-lepidemie-de-covid-19-en-france/table/?disjunctive.countrycode_iso_3166_1_alpha3&disjunctive.nom_dep_min&sort=date
+
+# https://data.iledefrance.fr/api/v2/console
+
+
+#------------------
+# Loading Packages
+#------------------
+library(tm)
+library(stringi)
+library(SnowballC)
+library(wordcloud)
+library(gtsummary)
+library(RColorBrewer)
+library(reactable)
+library(shinyjs)
+library(kableExtra)
+library(ggrepel)
+library(plotly)
+library(IRdisplay)
+library(stats)
+library(data.table)
+library(sp)
+library(shiny)
+library(leaflet)
+library(DT)
+library(tibble) 
+library(shinydashboard)
+library(shinycssloaders)
+library(shinybusy)
+library(shinyWidgets)
+library(shinythemes)
+library(tidyverse)    #data science package
+library(tidyr)
+library(lubridate)
+library(ggplot2)
+library(readr)
+library(magrittr)
+library(fpp)
+
+# Scraping lib
+library(httr)
+library(jsonlite)
+
+#-------------------------------------------
+#           USER INTERFACE AREA
+#-------------------------------------------
+ui <- shinyUI(
+  
+  dashboardPage(skin="green",   # skin: for changing the dashboard body
+                
+                dashboardHeader(title = "Paris Dashboard "),
+                dashboardSidebar(
+                  tags$style(type = 'text/css',".badge{min-width: 200px;}"),
+                  sidebarMenu(
+                    menuItem("Dev. in progress !", tabName = 'dashboard')
+                  )),
+                
+                ### Application Body ###
+                dashboardBody(navbarPage(
+                  titlePanel(" "),
+                  
+                  # Page1 --------------------------------------------------------------------------------------------------------------------------------
+                  tabPanel("Import Data",icon = icon("database"),
+                           add_busy_spinner(spin = "fading-circle"),
+                           fluidPage(
+                             mainPanel(tableOutput("contents"),
+                                       column(1),column(10, tableOutput("table1")),column(1)
+                             )
+                           )
+                  ),
+                  
+                  # Page2 -------------------------------------------------------------------------------------------------------------------------------
+                  tabPanel("Map view",
+                           fluidRow(
+                             leafletOutput("map"), # Map zone
+                             pickerInput("siren", label = "Select a SIREN:",
+                                         choices = list("All siren", `siren :` =c("219501764", "219502416", "213804859", "218201374")),
+                                         options = list(`live-search` = TRUE)
+                             )
+                             
+                           ) #End Fluidrow
+                           
+                  ) #End tabPanel
+                  
+                )#End navbarPage 
+                
+                )#End dashboardBody
+                
+  ) #End dashboardPage
+  
+) #End shinyUI
+
+#-------------------------------------------
+#               SERVER AREA                     
+#-------------------------------------------
+server <- function(input, output, session) {
+  
+  
+  ################ Calculation Steps  ################
+  base_url<-GET("https://entreprise.data.gouv.fr/api/sirene/v1/full_text/paris")
+  httr::http_status(base_url)    # Test of the status of the answer (by convention 200 if valid)
+  get_url_text <- httr::content(base_url,as = "text")         # content formatting
+  get_data_json<-jsonlite::fromJSON(get_url_text,flatten = T) # content retrieval
+  
+  # Transformation of the JSON result into data.frame concerning the establishment
+  get_data_base<-as.data.frame(get_data_json$etablissement)
+  # str(get_data_base)
+  
+  # Constitution of the database
+  data_base<-get_data_base %>%
+    select(siren, l1_normalisee, code_postal, nom_raison_sociale, longitude, latitude, geo_adresse)
+  
+  # Formattage des variables du data.frame 
+  data_base$siren<-as.factor(data_base$siren)
+  data_base$latitude<-as.numeric(data_base$latitude)
+  data_base$longitude<-as.numeric(data_base$longitude)
+  data_base$nom_raison_sociale<-as.factor(data_base$nom_raison_sociale)
+  data_base$l1_normalisee<-as.factor(data_base$l1_normalisee)
+  data_base$geo_adresse<-as.factor(data_base$geo_adresse)
+  data_base$code_postal<-as.factor(data_base$code_postal)
+  data_base <- mutate_at(data_base, c("latitude", "longitude"), ~replace(., is.na(.), 0))    # Replace "NA" by "0"
+  
+  ##################### Displaying Data Tables #################
+  output$table1 <- renderTable({
+    data_base
+  })
+  
+  
+  ###################### Displaying Plots ######################
+  
+  # Interpretation MAP
+  filteredData <- reactive({
+    if (input$siren == "All siren") {
+      data_base
+    }
+    else {
+      filter(data_base, siren == input$siren) #nom_raison_sociale
+    }
+  })
+  
+  #----------------------------
+  output$map <- renderLeaflet({
+    leaflet(filteredData()) %>%
+      addProviderTiles(providers$Esri.WorldTopoMap) %>%
+      addMarkers(~as.numeric(longitude), ~as.numeric(latitude),labelOptions = labelOptions(textsize = "12px"),popup = ~siren)
+    
+  })
+  
+  # Interpretation of information with Map during display
+  observe({
+    leafletProxy("map", data = filteredData()) %>%
+      clearShapes() %>%
+      addMarkers(~as.numeric(longitude), ~as.numeric(latitude),labelOptions = labelOptions(textsize = "12px"),popup = ~siren)
+    
+  })
+  
+  
+  #########################
+} # Ending server portion
+
+#----------------------
+#     Lanching APP
+#----------------------
+shinyApp(ui, server)
+

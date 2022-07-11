@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1657542162864.000,
+    "dirty" : false,
+    "encoding" : "ISO8859-1",
+    "folds" : "",
+    "hash" : "2123173532",
+    "id" : "D6FD8758",
+    "lastKnownWriteTime" : 1657541704,
+    "last_content_update" : 1657541704,
+    "path" : "C:/Users/m437354/Downloads/prj_to_push/api_query.R",
+    "project_path" : "api_query.R",
+    "properties" : {
+        "cursorPosition" : "16,18",
+        "scrollLine" : "0"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
