@@ -1,7 +1,4 @@
 
-
-
-
 from git import Repo
 
 PATH_OF_GIT_REPO = r'path\to\your\project\folder\.git'  # make sure .git folder is properly configured
