@@ -1,1 +1,1 @@
-# prj_push
+# How to Push Git Hub Projects
